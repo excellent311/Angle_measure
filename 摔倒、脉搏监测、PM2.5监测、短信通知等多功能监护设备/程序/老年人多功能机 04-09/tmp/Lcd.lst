@@ -1,0 +1,500 @@
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE LCD
+OBJECT MODULE PLACED IN .\tmp\LCD.obj
+COMPILER INVOKED BY: E:\Keil\C51\BIN\C51.EXE src\LCD.c BROWSE DEBUG OBJECTEXTEND PRINT(.\tmp\LCD.lst) TABS(2) OBJECT(.\t
+                    -mp\LCD.obj)
+
+line level    source
+
+   1          #include "STC12C5A60S2.h"
+   2          #include "Lcd.h"
+   3          #include "Delays.h"
+   4          #include "font.h"
+   5          
+   6          uchar Num[11]={0,1,2,3,4,5,6,7,8,9,0};
+   7          /*---------------------------液晶屏接线说明-------------------------------------
+   8          //sbit bl        =P3^2;//接模块LED引脚，背光可以采用IO控制或者PWM控制，也可以直接接到高电平常亮
+   9          //sbit scl       =P1^7;//接模块CLK引脚,
+  10          //sbit sda       =P1^5;//接模块SDI引脚，
+  11          //sbit rs        =P0^2;//接模块RS引脚，
+  12          //sbit cs        =P0^3;//接模块CS引脚
+  13          //sbit reset     =P3^3;//接模块RST引脚
+  14          //VCC:可以接5V也可以接3.3V
+  15          //LED:可以接5V也可以接3.3V或者使用任意空闲IO控制(高电平使能)
+  16          //GND：接电源地
+  17          //说明：如需要尽可能少占用IO，可以将LCD_CS接地，LCD_LED接3.3V，LCD_RST接至单片机复位端，
+  18          //将可以释放3个可用IO
+  19          //接口定义在Lcd_Driver.h内定义，
+  20          //如需变更IO接法，请根据您的实际接线修改相应IO初始化LCD_GPIO_Init()
+  21          //-----------------------------------------------------------------------------------------
+  22          例程功能说明：
+  23          1.  简单刷屏测试
+  24          2.  英文显示测试示例
+  25          3.  中文显示测试示例
+  26          4.  数码管字体显示示例
+  27          5.  图片显示示例
+  28          6.  2D按键菜单示例
+  29          7.  本例程支持横屏/竖屏切换(开启宏USE_HORIZONTAL,详见Lcd_Driver.h)
+  30          8.  本例程支持软件模拟SPI/硬件SPI切换(开启宏USE_HARDWARE_SPI,详见Lcd_Driver.h)
+  31          **********************************************************************************************/
+  32          
+  33          
+  34          //========================================================================
+  35          // 函数: void SPI_init(void)
+  36          // 描述: 配置硬件SPI，可通过修改SPEED_4值来更改SPI总线速度
+  37          // 参数: none.
+  38          // 返回: none.
+  39          // 版本: VER1.0
+  40          // 日期: 2012-12-15
+  41          // 备注: SPEED_4为4分频最高速，SPEED_128为最低速
+  42          //========================================================================
+  43          ////
+  44          void  SPI_init(void)  
+  45          {
+  46   1        SPCTL = (SSIG << 7) + (SPEN << 6) + (DORD << 5) + (MSTR << 4) + (CPOL << 3) + (CPHA << 2) + SPEED_4;
+  47   1      }
+  48          
+  49          /****************************************************************************
+  50          * 名    称：void  SPIv_WriteData(u8 Data)
+  51          * 功    能：STM32_模拟SPI写一个字节数据底层函数
+  52          * 入口参数：Data
+  53          * 出口参数：无
+  54          * 说    明：STM32_模拟SPI读写一个字节数据底层函数
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 2   
+
+  55          ****************************************************************************/
+  56          void  SPIv_WriteData(uchar Data)
+  57          {
+  58   1        uchar i=0;
+  59   1        for(i=8;i>0;i--)
+  60   1        {
+  61   2          if(Data&0x80) 
+  62   2            sda=1; //输出数据
+  63   2              else sda=0;
+  64   2           
+  65   2              scl=0;       
+  66   2              scl=1;
+  67   2              Data<<=1; 
+  68   2        }
+  69   1      }
+  70          /****************************************************************************
+  71          * 名    称：void SPI_WriteByte(uchar byte)
+  72          * 功    能：STM32_硬件SPI写一个字节数据底层函数
+  73          * 入口参数：byte
+  74          * 出口参数：返回总线收到的数据
+  75          * 说    明：STM32_硬件SPI写一个字节数据底层函数
+  76          ****************************************************************************/
+  77          void SPI_WriteByte(uchar byte)
+  78          {     
+  79   1            SPDAT = byte;   //发送一个字节
+  80   1            while((SPSTAT & SPIF) == 0) ; //等待发送完成
+  81   1            SPSTAT = SPIF + WCOL;     //清0 SPIF和WCOL标志
+  82   1      }
+  83          
+  84          /****************************************************************************
+  85          * 名    称：Lcd_WriteIndex(u8 Index)
+  86          * 功    能：向液晶屏写一个8位指令
+  87          * 入口参数：Index   寄存器地址
+  88          * 出口参数：无
+  89          * 说    明：调用前需先选中控制器，内部函数
+  90          ****************************************************************************/
+  91          void Lcd_WriteIndex(uchar Index)
+  92          {
+  93   1         cs=0;
+  94   1         rs=0;
+  95   1      #if USE_HARDWARE_SPI   
+  96   1         SPI_WriteByte(Index);
+  97   1      #else
+                 SPIv_WriteData(Index);
+              #endif 
+ 100   1         cs=1;
+ 101   1      }
+ 102          
+ 103          /****************************************************************************
+ 104          * 名    称：Lcd_WriteData(u8 Data)
+ 105          * 功    能：向液晶屏写一个8位数据
+ 106          * 入口参数：dat     寄存器数据
+ 107          * 出口参数：无
+ 108          * 说    明：向控制器指定地址写入数据，内部函数
+ 109          ****************************************************************************/
+ 110          void Lcd_WriteData(uchar Data)
+ 111          {
+ 112   1         cs=0;
+ 113   1         rs=1;
+ 114   1      #if USE_HARDWARE_SPI   
+ 115   1         SPI_WriteByte(Data);
+ 116   1      #else
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 3   
+
+                 SPIv_WriteData(Data);
+              #endif 
+ 119   1         cs=1;
+ 120   1      }
+ 121          /****************************************************************************
+ 122          * 名    称：void Lcd_WriteData_16Bit(u16 Data)
+ 123          * 功    能：向液晶屏写一个16位数据
+ 124          * 入口参数：Data
+ 125          * 出口参数：无
+ 126          * 说    明：向控制器指定地址写入一个16位数据
+ 127          ****************************************************************************/
+ 128          void Lcd_WriteData_16Bit(uint Data)
+ 129          { 
+ 130   1        Lcd_WriteData(Data>>8);
+ 131   1        Lcd_WriteData(Data);  
+ 132   1      }
+ 133          /****************************************************************************
+ 134          * 名    称：void LCD_WriteReg(u8 Index,u16 Data)
+ 135          * 功    能：写寄存器数据
+ 136          * 入口参数：Index,Data
+ 137          * 出口参数：无
+ 138          * 说    明：本函数为组合函数，向Index地址的寄存器写入Data值
+ 139          ****************************************************************************/
+ 140          void LCD_WriteReg(uchar Index,uint Data)
+ 141          {
+ 142   1        Lcd_WriteIndex(Index);
+ 143   1          Lcd_WriteData_16Bit(Data);
+ 144   1      }
+ 145          
+ 146          
+ 147          
+ 148          
+ 149          /****************************************************************************
+ 150          * 名    称：void Lcd_Reset(void)
+ 151          * 功    能：液晶硬复位函数
+ 152          * 入口参数：无
+ 153          * 出口参数：无
+ 154          * 说    明：液晶初始化前需执行一次复位操作
+ 155          ****************************************************************************/
+ 156          void Lcd_Reset()
+ 157          { 
+ 158   1          reset=0;
+ 159   1          delay_ms(100);
+ 160   1          reset=1;
+ 161   1          delay_ms(50);
+ 162   1      }
+ 163          
+ 164          
+ 165          
+ 166          
+ 167          /*************************************************
+ 168          函数名：LCD_Set_XY
+ 169          功能：设置lcd显示起始点
+ 170          入口参数：xy坐标
+ 171          返回值：无
+ 172          *************************************************/
+ 173          void Lcd_SetXY(uint Xpos, int Ypos)
+ 174          { 
+ 175   1      #if USE_HORIZONTAL//如果定义了横屏          
+ 176   1        LCD_WriteReg(0x21,Xpos);
+ 177   1        LCD_WriteReg(0x20,Ypos);
+ 178   1      #else//竖屏 
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 4   
+
+                LCD_WriteReg(0x20,Xpos);
+                LCD_WriteReg(0x21,Ypos);
+              #endif
+ 182   1        Lcd_WriteIndex(0x22);   
+ 183   1      } 
+ 184          /*************************************************
+ 185          函数名：LCD_Set_Region
+ 186          功能：设置lcd显示区域，在此区域写点数据自动换行
+ 187          入口参数：xy起点和终点
+ 188          返回值：无
+ 189          *************************************************/
+ 190          //设置显示窗口
+ 191          void Lcd_SetRegion(uchar xStar, uchar yStar,uchar xEnd,uchar yEnd)
+ 192          {
+ 193   1      #if USE_HORIZONTAL//如果定义了横屏  
+ 194   1        LCD_WriteReg(0x38,xEnd);
+ 195   1        LCD_WriteReg(0x39,xStar);
+ 196   1        LCD_WriteReg(0x36,yEnd);
+ 197   1        LCD_WriteReg(0x37,yStar);
+ 198   1        LCD_WriteReg(0x21,xStar);
+ 199   1        LCD_WriteReg(0x20,yStar);
+ 200   1      #else//竖屏 
+                LCD_WriteReg(0x36,xEnd);
+                LCD_WriteReg(0x37,xStar);
+                LCD_WriteReg(0x38,yEnd);
+                LCD_WriteReg(0x39,yStar);
+                LCD_WriteReg(0x20,xStar);
+                LCD_WriteReg(0x21,yStar);
+              #endif
+ 208   1        Lcd_WriteIndex(0x22); 
+ 209   1      }
+ 210          
+ 211          /*************************************************
+ 212          函数名：LCD_DrawPoint
+ 213          功能：画一个点
+ 214          入口参数：xy坐标和颜色数据
+ 215          返回值：无
+ 216          *************************************************/
+ 217          void Gui_DrawPoint(uint x,uint y,uint Data)
+ 218          {
+ 219   1        Lcd_SetXY(x,y);
+ 220   1        Lcd_WriteData_16Bit(Data);
+ 221   1      
+ 222   1      }    
+ 223          
+ 224          /*************************************************
+ 225          函数名：Lcd_Clear
+ 226          功能：全屏清屏函数
+ 227          入口参数：填充颜色COLOR
+ 228          返回值：无
+ 229          *************************************************/
+ 230          void Lcd_Clear(uint Color)               
+ 231          { 
+ 232   1         uint i,m;
+ 233   1         Lcd_SetRegion(0,0,X_MAX_PIXEL-1,Y_MAX_PIXEL-1);
+ 234   1         for(i=0;i<X_MAX_PIXEL;i++)
+ 235   1          for(m=0;m<Y_MAX_PIXEL;m++)
+ 236   1          { 
+ 237   2            Lcd_WriteData_16Bit(Color);
+ 238   2          }   
+ 239   1      }
+ 240          
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 5   
+
+ 241          /****************************************************************************
+ 242          * 名    称：void Lcd_Init(void)
+ 243          * 功    能：液晶初始化函数
+ 244          * 入口参数：无
+ 245          * 出口参数：无
+ 246          * 说    明：液晶初始化_ILI9225_176X220
+ 247          ****************************************************************************/
+ 248          void Lcd_Init(void)
+ 249          { 
+ 250   1      #if USE_HARDWARE_SPI //使用硬件SPI
+ 251   1        SPI_init();
+ 252   1      #endif
+ 253   1        Lcd_Reset(); //Reset before LCD Init.
+ 254   1      
+ 255   1        //LCD Init For 2.2inch LCD Panel with ILI9225.  
+ 256   1        LCD_WriteReg(0x10, 0x0000); // Set SAP,DSTB,STB
+ 257   1        LCD_WriteReg(0x11, 0x0000); // Set APON,PON,AON,VCI1EN,VC
+ 258   1        LCD_WriteReg(0x12, 0x0000); // Set BT,DC1,DC2,DC3
+ 259   1        LCD_WriteReg(0x13, 0x0000); // Set GVDD
+ 260   1        LCD_WriteReg(0x14, 0x0000); // Set VCOMH/VCOML voltage
+ 261   1        delay_ms(40); // Delay 20 ms
+ 262   1        
+ 263   1        // Please follow this power on sequence
+ 264   1        LCD_WriteReg(0x11, 0x0018); // Set APON,PON,AON,VCI1EN,VC
+ 265   1        LCD_WriteReg(0x12, 0x1121); // Set BT,DC1,DC2,DC3
+ 266   1        LCD_WriteReg(0x13, 0x0063); // Set GVDD
+ 267   1        LCD_WriteReg(0x14, 0x3961); // Set VCOMH/VCOML voltage
+ 268   1        LCD_WriteReg(0x10, 0x0800); // Set SAP,DSTB,STB
+ 269   1        delay_ms(10); // Delay 10 ms
+ 270   1        LCD_WriteReg(0x11, 0x1038); // Set APON,PON,AON,VCI1EN,VC
+ 271   1        delay_ms(30); // Delay 30 ms
+ 272   1        
+ 273   1        
+ 274   1        LCD_WriteReg(0x02, 0x0100); // set 1 line inversion
+ 275   1      
+ 276   1      #if USE_HORIZONTAL//如果定义了横屏
+ 277   1        //R01H:SM=0,GS=0,SS=0 (for details,See the datasheet of ILI9225)
+ 278   1        LCD_WriteReg(0x01, 0x001C); // set the display line number and display direction
+ 279   1        //R03H:BGR=1,ID0=1,ID1=1,AM=1 (for details,See the datasheet of ILI9225)
+ 280   1        LCD_WriteReg(0x03, 0x1038); // set GRAM write direction .
+ 281   1      #else//竖屏
+                //R01H:SM=0,GS=0,SS=1 (for details,See the datasheet of ILI9225)
+                LCD_WriteReg(0x01, 0x011C); // set the display line number and display direction 
+                //R03H:BGR=1,ID0=1,ID1=1,AM=0 (for details,See the datasheet of ILI9225)
+                LCD_WriteReg(0x03, 0x1030); // set GRAM write direction.
+              #endif
+ 287   1      
+ 288   1        LCD_WriteReg(0x07, 0x0000); // Display off
+ 289   1        LCD_WriteReg(0x08, 0x0808); // set the back porch and front porch
+ 290   1        LCD_WriteReg(0x0B, 0x1100); // set the clocks number per line
+ 291   1        LCD_WriteReg(0x0C, 0x0000); // CPU interface
+ 292   1        LCD_WriteReg(0x0F, 0x0501); // Set Osc
+ 293   1        LCD_WriteReg(0x15, 0x0020); // Set VCI recycling
+ 294   1        LCD_WriteReg(0x20, 0x0000); // RAM Address
+ 295   1        LCD_WriteReg(0x21, 0x0000); // RAM Address
+ 296   1        
+ 297   1        //------------------------ Set GRAM area --------------------------------//
+ 298   1        LCD_WriteReg(0x30, 0x0000); 
+ 299   1        LCD_WriteReg(0x31, 0x00DB); 
+ 300   1        LCD_WriteReg(0x32, 0x0000); 
+ 301   1        LCD_WriteReg(0x33, 0x0000); 
+ 302   1        LCD_WriteReg(0x34, 0x00DB); 
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 6   
+
+ 303   1        LCD_WriteReg(0x35, 0x0000); 
+ 304   1        LCD_WriteReg(0x36, 0x00AF); 
+ 305   1        LCD_WriteReg(0x37, 0x0000); 
+ 306   1        LCD_WriteReg(0x38, 0x00DB); 
+ 307   1        LCD_WriteReg(0x39, 0x0000); 
+ 308   1        
+ 309   1        
+ 310   1        // ---------- Adjust the Gamma 2.2 Curve -------------------//
+ 311   1        LCD_WriteReg(0x50, 0x0603); 
+ 312   1        LCD_WriteReg(0x51, 0x080D); 
+ 313   1        LCD_WriteReg(0x52, 0x0D0C); 
+ 314   1        LCD_WriteReg(0x53, 0x0205); 
+ 315   1        LCD_WriteReg(0x54, 0x040A); 
+ 316   1        LCD_WriteReg(0x55, 0x0703); 
+ 317   1        LCD_WriteReg(0x56, 0x0300); 
+ 318   1        LCD_WriteReg(0x57, 0x0400); 
+ 319   1        LCD_WriteReg(0x58, 0x0B00); 
+ 320   1        LCD_WriteReg(0x59, 0x0017); 
+ 321   1        
+ 322   1        
+ 323   1        
+ 324   1        LCD_WriteReg(0x0F, 0x0701); // Vertical RAM Address Position
+ 325   1        LCD_WriteReg(0x07, 0x0012); // Vertical RAM Address Position
+ 326   1        delay_ms(50); // Delay 50 ms
+ 327   1        LCD_WriteReg(0x07, 0x1017); // Vertical RAM Address Position  
+ 328   1        Lcd_Clear(GRAY0);
+ 329   1      }
+ 330          
+ 331          
+ 332          void Gui_DrawFont_GBK16(uint x, uint y, uint fc, uint bc, uchar *s)
+ 333          {
+ 334   1        unsigned char i,j;
+ 335   1        unsigned short k,x0;
+ 336   1        x0=x;
+ 337   1      
+ 338   1        while(*s) 
+ 339   1        { 
+ 340   2          if((*s) < 128) 
+ 341   2          {
+ 342   3            k=*s;
+ 343   3            if (k==13) 
+ 344   3            {
+ 345   4              x=x0;
+ 346   4              y+=16;
+ 347   4            }
+ 348   3            else 
+ 349   3            {
+ 350   4              if (k>32) k-=32; else k=0;
+ 351   4        
+ 352   4                for(i=0;i<16;i++)
+ 353   4                for(j=0;j<8;j++) 
+ 354   4                {
+ 355   5                    if(asc16[k*16+i]&(0x80>>j)) Gui_DrawPoint(x+j,y+i,fc);
+ 356   5                  else 
+ 357   5                  {
+ 358   6                    if (fc!=bc) Gui_DrawPoint(x+j,y+i,bc);
+ 359   6                  }
+ 360   5                }
+ 361   4              x+=8;
+ 362   4            }
+ 363   3            s++;
+ 364   3          }
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 7   
+
+ 365   2            
+ 366   2          else 
+ 367   2          {
+ 368   3          
+ 369   3      
+ 370   3            for (k=0;k<hz16_num;k++) 
+ 371   3            {
+ 372   4              if ((hz16[k].Index[0]==*(s))&&(hz16[k].Index[1]==*(s+1)))
+ 373   4              { 
+ 374   5                  for(i=0;i<16;i++)
+ 375   5                  {
+ 376   6                  for(j=0;j<8;j++) 
+ 377   6                    {
+ 378   7                        if(hz16[k].Msk[i*2]&(0x80>>j))  Gui_DrawPoint(x+j,y+i,fc);
+ 379   7                      else {
+ 380   8                        if (fc!=bc) Gui_DrawPoint(x+j,y+i,bc);
+ 381   8                      }
+ 382   7                    }
+ 383   6                  for(j=0;j<8;j++) 
+ 384   6                    {
+ 385   7                        if(hz16[k].Msk[i*2+1]&(0x80>>j))  Gui_DrawPoint(x+j+8,y+i,fc);
+ 386   7                      else 
+ 387   7                      {
+ 388   8                        if (fc!=bc) Gui_DrawPoint(x+j+8,y+i,bc);
+ 389   8                      }
+ 390   7                    }
+ 391   6                  }
+ 392   5              }
+ 393   4              }
+ 394   3            s+=2;x+=16;
+ 395   3          } 
+ 396   2          
+ 397   2        }
+ 398   1      }
+ 399          void Gui_DrawFont_Num32(uint x, uint y, uint fc, uint bc, uint num)
+ 400          {
+ 401   1        unsigned char i,j,k,c;
+ 402   1        //lcd_text_any(x+94+i*42,y+34,32,32,0x7E8,0x0,sz32,knum[i]);
+ 403   1      //  w=w/8;
+ 404   1      
+ 405   1          for(i=0;i<32;i++)
+ 406   1        {
+ 407   2          for(j=0;j<4;j++) 
+ 408   2          {
+ 409   3            c=*(sz32+num*32*4+i*4+j);
+ 410   3            for (k=0;k<8;k++) 
+ 411   3            {
+ 412   4        
+ 413   4                if(c&(0x80>>k)) Gui_DrawPoint(x+j*8+k,y+i,fc);
+ 414   4                else 
+ 415   4                {
+ 416   5                  if (fc!=bc) Gui_DrawPoint(x+j*8+k,y+i,bc);
+ 417   5                }
+ 418   4            }
+ 419   3          }
+ 420   2        }
+ 421   1      }
+ 422          
+ 423          
+ 424          // //测试数码管字体
+ 425          // void Num_Test(void)
+ 426          // {
+C51 COMPILER V9.52.0.0   LCD                                                               04/06/2015 22:52:09 PAGE 8   
+
+ 427          //  uchar i=0;
+ 428          //  uchar a="1",b="2";
+ 429          //  //Lcd_Clear(GRAY0);
+ 430          //  //Gui_DrawFont_GBK16(16,20,RED,GRAY0,"Num Test");
+ 431          // //   delay_ms(1000);
+ 432          // //   Lcd_Clear(GRAY0);
+ 433          // //   Gui_DrawFont_Num16(0,30,RED,GRAY0,1);
+ 434          // //   Gui_DrawFont_Num16(30,30,RED,GRAY0,2);
+ 435          //  Gui_DrawFont_GBK16(16,30,BLUE,GRAY0,&a);
+ 436          //  Gui_DrawFont_GBK16(16,50,BLUE,GRAY0,&b);
+ 437          // //   for(i=0;i<10;i++)
+ 438          // //   {
+ 439          // //   Gui_DrawFont_Num32((i%3)*40,32*(i/3)+30,RED,GRAY0,Num[i+1]);  
+ 440          // //   }
+ 441          //  //delay_ms(1200);
+ 442          //  
+ 443          // }
+ 444          
+ 445          // //中英文显示测试
+ 446          // void Font_Test(void)
+ 447          // {
+ 448          //  //Lcd_Clear(GRAY0);
+ 449          //    Gui_DrawFont_GBK16(16,10,BLUE,GRAY0,"文字显示测试");
+ 450          
+ 451          //  //delay_ms(1000);
+ 452          //  //Lcd_Clear(GRAY0);
+ 453          //  Gui_DrawFont_GBK16(16,30,BLUE,GRAY0,"全动电子技术");
+ 454          //  Gui_DrawFont_GBK16(16,50,BLUE,GRAY0,"专注液晶批发");
+ 455          //  Gui_DrawFont_GBK16(16,70,BLUE,GRAY0, "全程技术支持");
+ 456          //  Gui_DrawFont_GBK16(0,100,BLUE,GRAY0,"Tel:15989313508");
+ 457          //  Gui_DrawFont_GBK16(0,130,BLUE,GRAY0, "www.qdtech.net"); 
+ 458          //  //delay_ms(1800); 
+ 459          //  
+ 460          // //   Gui_DrawFont_Num32(100,125,RED,GRAY0,1);
+ 461          // //   Gui_DrawFont_Num32(110,125,RED,GRAY0,2);
+ 462          // }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1615    ----
+   CONSTANT SIZE    =   6650    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     11      36
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

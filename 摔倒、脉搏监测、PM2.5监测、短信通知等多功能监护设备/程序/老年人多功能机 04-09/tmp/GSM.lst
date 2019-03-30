@@ -1,0 +1,156 @@
+C51 COMPILER V9.00   GSM                                                                   03/22/2015 21:12:34 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE GSM
+OBJECT MODULE PLACED IN .\tmp\GSM.obj
+COMPILER INVOKED BY: E:\Keil\C51\BIN\C51.EXE src\GSM.c BROWSE DEBUG OBJECTEXTEND PRINT(.\tmp\GSM.lst) TABS(2) OBJECT(.\t
+                    -mp\GSM.obj)
+
+line level    source
+
+   1          #include "STC12C5A60S2.h"
+   2          #include "Delays.h"
+   3          #include "DataDef.h"
+   4          #include "stdio.h"
+   5          #include "string.h"
+   6          #include "GSM.h"
+*** WARNING C318 IN LINE 6 OF src\GSM.c: can't open file 'GSM.h'
+   7          #define Buf_Max 80   //»º´æ³¤¶È
+   8          uchar  Rec_Buf[Buf_Max];
+   9          uchar count=0;
+  10          //**************************´®¿Ú³õÊ¼»¯º¯Êý
+  11          void Serial_Init()
+  12          {
+  13   1        
+  14   1        SCON=0x50; //Ê¹ÓÃ´®¿Ú·½Ê½1£¬ÔÊÐí½ÓÊÕ£¨SM1,SM0=0,1£©,(REN=1)
+  15   1        PCON=0x00; //±ÈÌØÂÊ²»¼Ó±¶£¨´ËÓï¾ä¿ÉÆÁ±Î£¬ÏµÍ³Ä¬ÈÏÎª0£©
+  16   1        TMOD=0x20; //Ê¹ÓÃ¶¨Ê±Æ÷1µÄ¹¤×÷·½Ê½2£¬8Î»×Ô¶¯ÖØ×°¼ÆÊýÀ´²úÉú²¨ÌØÂÊ
+  17   1        TH1=0xFD;
+  18   1        TL1=0xFD; //²úÉúµÄ²¨ÌØÂÊÎª9600
+  19   1        IE=0x90; //EA=1,ES=1
+  20   1        TR1=1;
+  21   1      }
+  22          
+  23          //***************************Çå³ý»º´æÇøÄÚÈÝ
+  24          void CLR_Buf()
+  25          {
+  26   1         uchar k;
+  27   1         for(k=0;k<Buf_Max;k++)   //Çå¿Õ»º´æÇø
+  28   1          {
+  29   2           Rec_Buf[k]=0;
+  30   2          }
+  31   1         count=0;      //½ÓÊÕ×Ö·û´®µÄÆðÊ¼´æ´¢Î»ÖÃ
+  32   1      }
+  33          
+  34          //**************************´®¿Ú·¢ËÍ×Ö·ûº¯Êý
+  35          void Send_Char(uchar a)
+  36          {
+  37   1         ES=0;
+  38   1         SBUF=a;
+  39   1         while(TI==0);
+  40   1         TI=0;
+  41   1         ES=1; 
+  42   1      }
+  43          
+  44          //**************************´®¿Ú·¢ËÍ×Ö·û´®º¯Êý
+  45          void Send_String(uchar *tab)
+  46          {        
+  47   1         ES=0;       
+  48   1         while(*tab!='\0')    
+  49   1          {
+  50   2           Send_Char(*tab++);  //Send_Char(*tab); tab++;  
+  51   2          }
+  52   1         ES=1;
+  53   1      }
+C51 COMPILER V9.00   GSM                                                                   03/22/2015 21:12:34 PAGE 2   
+
+  54          
+  55          //***************************´®¿ÚÎÕÊÖº¯Êý
+  56          bit Hand(uchar *ptr)
+  57          {
+  58   1        if(strstr(Rec_Buf,ptr)!=NULL)
+  59   1          return 1;
+  60   1        else
+  61   1          return 0;
+  62   1      }
+  63          
+  64          void SendMessage()
+  65          {
+  66   1        CLR_Buf();
+  67   1        Send_String("AT+CSCS=\"GSM\"\r\n"); //¡°GSM¡±×Ö·û¼¯
+  68   1        delay_ms(100);
+  69   1        while(!Hand("OK"));
+  70   1        CLR_Buf();
+  71   1        Send_String("AT+CMGF=1\r\n"); //·¢ËÍÓ¢ÎÄ¶ÌÐÅ
+  72   1        delay_ms(100);
+  73   1        while(!Hand("OK"));
+  74   1        CLR_Buf();
+  75   1        Send_String("AT+CMGS=\"13794887373\"\r\n"); //·¢ËÍÓ¢ÎÄ¶ÌÐ
+  76   1        delay_ms(100);
+  77   1        while(!Hand(">"));
+  78   1        CLR_Buf();
+  79   1        Send_String("WARMING"); //·¢ËÍÓ¢ÎÄ¶ÌÐÅ
+  80   1        delay_ms(100);
+  81   1        Send_Char(0X1A);
+  82   1        CLR_Buf();  
+  83   1      }
+  84          void GSMInit()
+  85          {
+  86   1        CLR_Buf(); 
+  87   1        Send_String("AT\r\n"); //ÎÕÊÖÖ¸Áî(AT+»Ø³µ+»»ÐÐ)
+  88   1        delay_ms(100);
+  89   1        while(!Hand("OK"))
+  90   1        {
+  91   2          Send_String("AT\r\n");
+  92   2           delay_ms(100);  
+  93   2        }
+  94   1        CLR_Buf();
+  95   1        Send_String("AT+CMGF=1\r\n"); //½ÓÊÕÓ¢ÎÄ¶ÌÐÅ
+  96   1        delay_ms(100);
+  97   1        while(!Hand("OK"));
+  98   1      //  CLR_Buf();
+  99   1      //  Send_String("AT+CNMI=2,1\r\n"); //µ±ÓÐÐÂ¶ÌÐÅÊ±ÌáÊ¾²¢ÏÔÊ¾´¢´æÎ»ÖÃ
+ 100   1      //  delayms(100);
+ 101   1      //  while(!Hand("OK"));
+ 102   1      //  CLR_Buf();
+ 103   1      //  Send_String("AT+CMGD=1\r\n");  //É¾³ý1ºÅÎ»ÖÃ¶ÌÐÅ
+ 104   1      //  delayms(100);
+ 105   1      //  while(!Hand("OK"));
+ 106   1      //  CLR_Buf();
+ 107   1      //  Send_String("AT+CLIP=1\r\n");  //
+ 108   1      //  delayms(100);
+ 109   1      //  while(!Hand("OK"));
+ 110   1      }
+ 111          
+ 112          void serial() interrupt 4 
+ 113          {
+ 114   1        ES = 0;
+ 115   1        if(TI){TI=0;}
+C51 COMPILER V9.00   GSM                                                                   03/22/2015 21:12:34 PAGE 3   
+
+ 116   1        if(RI)
+ 117   1        {
+ 118   2          RI=0;   
+ 119   2          Rec_Buf[count]=SBUF;
+ 120   2          count++;
+ 121   2          if(count>Buf_Max)
+ 122   2              {
+ 123   3              count=0;
+ 124   3            }
+ 125   2        } 
+ 126   1        ES = 1;
+ 127   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    309    ----
+   CONSTANT SIZE    =     70    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     81       6
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

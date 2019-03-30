@@ -1,0 +1,200 @@
+C51 COMPILER V9.52.0.0   DS1302                                                            04/18/2015 11:16:22 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE DS1302
+OBJECT MODULE PLACED IN .\tmp\DS1302.obj
+COMPILER INVOKED BY: E:\Keil\C51\BIN\C51.EXE src\DS1302.c BROWSE DEBUG OBJECTEXTEND PRINT(.\tmp\DS1302.lst) TABS(2) OBJE
+                    -CT(.\tmp\DS1302.obj)
+
+line level    source
+
+   1          #include "STC12C5A60S2.h"
+   2          #include "Delays.h"
+   3          #include "DS1302.h"
+   4          #include "DataDef.h"
+   5          #include "LCD.h"
+   6          sbit SCLK=P1^0;          //ds1302引脚
+   7          sbit IO=P1^1;
+   8          sbit RES=P1^4;
+   9          sbit ACC0 = ACC^0;
+  10          sbit ACC7 = ACC^7;
+  11          char xdata Year=15;
+  12          char xdata Month=2;
+  13          char xdata Day=26;
+  14          char xdata Hour=14;
+  15          char xdata Minute=23;
+  16          char xdata Second=30;
+  17          uchar aa[2]="01";
+  18          void writebyte(uchar date)      //往1302写1字节的数据
+  19          {
+  20   1        uchar i;
+  21   1        RES=1;
+  22   1        ACC=date;
+  23   1        for(i=8;i>0;i--)
+  24   1        {
+  25   2        IO=ACC0;             //先写低字节，后高字节
+  26   2        SCLK=1;
+  27   2        SCLK=0;           //说是上升沿，怎么成下降沿了？
+  28   2        ACC=ACC>>1;
+  29   2        }   
+  30   1      }
+  31          uchar readbyte(void)             //从1302读1字节的数据
+  32          {
+  33   1        uchar i;
+  34   1        RES=1;
+  35   1        for(i=8;i>0;i--)
+  36   1        {
+  37   2          ACC=ACC>>1;
+  38   2          ACC7=IO;
+  39   2          SCLK=1;
+  40   2          SCLK=0;
+  41   2        }
+  42   1        return(ACC);
+  43   1      }
+  44          void Write_DS1302(uint Adrr,uint Data)       //往1302写数据
+  45          {
+  46   1        RES=0;
+  47   1        SCLK=0;
+  48   1        RES=1;
+  49   1        writebyte(Adrr);         //写地址
+  50   1        _nop_();
+  51   1        _nop_(); 
+  52   1        writebyte(Data);        //写数据
+  53   1        SCLK=1;
+  54   1        RES=0;
+C51 COMPILER V9.52.0.0   DS1302                                                            04/18/2015 11:16:22 PAGE 2   
+
+  55   1          
+  56   1      }
+  57          uchar Read_DS1302(uchar Adrr)        //从1302读地址的数据
+  58          {
+  59   1        uchar Data1;
+  60   1        RES=0;
+  61   1        SCLK=0;
+  62   1        RES=1;
+  63   1        writebyte(Adrr);
+  64   1        _nop_();
+  65   1        _nop_();
+  66   1        Data1=readbyte();           //给一个地址就会出现一次数据？？？？    那写于读都有什么区别
+  67   1        SCLK=1;
+  68   1        RES=0;
+  69   1        return Data1;
+  70   1      }
+  71          //uchar bcdtodec(uchar bcd)
+  72          //{
+  73          //  uchar data1;
+  74          //  data1 = bcd & 0x0f;     //取BCD低4位
+  75          //  bcd = bcd & 0x70;       //剔除BCD的最高位和低4位。
+  76          //  data1 += bcd >> 1;
+  77          //  data1 += bcd >> 3;      //用位移代替乘法运算
+  78          //  return data1;
+  79          //}
+  80          
+  81          void Set_Col(uchar adress,uint dat)
+  82          {
+  83   1        uchar tmp1,tmp2;
+  84   1      
+  85   1        tmp1 = dat/10;
+  86   1        tmp2 = dat%10;
+  87   1        tmp2 = tmp2+tmp1*16;
+  88   1        Write_DS1302(0x8E,0x00);
+  89   1        Write_DS1302(adress,tmp2);
+  90   1        Write_DS1302(0x8E,0x80);
+  91   1      }
+  92          void DS1302init()         //上电时钟
+  93          {
+  94   1        Write_DS1302(0x8e,0);
+  95   1        Set_Col(0x80,Second);
+  96   1        Write_DS1302(0x8e,0);
+  97   1        Set_Col(0x82,Minute);
+  98   1        Write_DS1302(0x8e,0);
+  99   1        Set_Col(0x84,Hour);
+ 100   1        Write_DS1302(0x8e,0);
+ 101   1        Set_Col(0x86,Day);
+ 102   1        Write_DS1302(0x8e,0);
+ 103   1        Set_Col(0x88,Month);
+ 104   1      //  Write_DS1302(0x8e,0);
+ 105   1      //  Write_DS1302(0x8a,0x07);    //星期
+ 106   1        Write_DS1302(0x8e,0);
+ 107   1        Set_Col(0x8c,Year);
+ 108   1      
+ 109   1      }
+ 110          void Read_RTC(void)//读取
+ 111          {
+ 112   1        uchar tmp;  
+ 113   1        tmp=Read_DS1302(0x81)&0x7F;
+ 114   1        Second=tmp&0x0F;
+ 115   1        Second=Second+(tmp>>4)*10;
+ 116   1        
+C51 COMPILER V9.52.0.0   DS1302                                                            04/18/2015 11:16:22 PAGE 3   
+
+ 117   1        tmp=Read_DS1302(0x83)&0x7F;
+ 118   1        Minute=tmp&0x0F;
+ 119   1        Minute=Minute+(tmp>>4)*10;
+ 120   1        
+ 121   1        tmp=Read_DS1302(0x85)&0x3F;
+ 122   1        Hour=tmp&0x0F;
+ 123   1        Hour=Hour+(tmp>>4)*10;
+ 124   1        
+ 125   1        tmp=Read_DS1302(0x87)&0x3F;
+ 126   1        Day=tmp&0x0F;
+ 127   1        Day=Day+(tmp>>4)*10;
+ 128   1        
+ 129   1        tmp=Read_DS1302(0x89)&0x1F;
+ 130   1        Month=tmp&0x0F;
+ 131   1        Month=Month+(tmp>>4)*10;
+ 132   1        
+ 133   1        tmp=Read_DS1302(0x8D)&0xFF;
+ 134   1        Year=tmp&0x0F;
+ 135   1        Year=Year+(tmp>>4)*10;
+ 136   1        //Year=Year+2000;
+ 137   1      }
+ 138          void Set_RTC(void)//设定时间日期
+ 139          {
+ 140   1        Write_DS1302(0x8E,0x00);
+ 141   1        Set_Col(0x80,Second);
+ 142   1        Set_Col(0x82,Minute);
+ 143   1        Set_Col(0x84,Hour);
+ 144   1        Set_Col(0x86,Day);
+ 145   1        Set_Col(0x88,Month);
+ 146   1        Set_Col(0x8C,Year);
+ 147   1        Write_DS1302(0x8E,0x80);
+ 148   1      }
+ 149          uchar *Dis_shi(char temp_data)  
+ 150          {  
+ 151   1        aa[0]=temp_data/10+0x30;  //??
+ 152   1        temp_data=temp_data%10;      //????
+ 153   1        aa[1]=temp_data+0x30;   //??
+ 154   1        return aa;
+ 155   1      }
+ 156          void Dis_Time(void)//液晶屏显示时间日期
+ 157          {
+ 158   1        Gui_DrawFont_GBK16(16,30,BLUE,GRAY0,"20");
+ 159   1        Gui_DrawFont_GBK16(32,30,BLUE,GRAY0,Dis_shi(Year));
+ 160   1        Gui_DrawFont_GBK16(48,30,BLUE,GRAY0,"-");
+ 161   1        Gui_DrawFont_GBK16(56,30,BLUE,GRAY0,Dis_shi(Month));
+ 162   1        Gui_DrawFont_GBK16(72,30,BLUE,GRAY0,"-");
+ 163   1        Gui_DrawFont_GBK16(80,30,BLUE,GRAY0,Dis_shi(Day));
+ 164   1        
+ 165   1        Gui_DrawFont_GBK16(16,50,BLUE,GRAY0,Dis_shi(Hour));
+ 166   1        Gui_DrawFont_GBK16(32,50,BLUE,GRAY0,":");
+ 167   1        Gui_DrawFont_GBK16(40,50,BLUE,GRAY0,Dis_shi(Minute));
+ 168   1        Gui_DrawFont_GBK16(56,50,BLUE,GRAY0,":");
+ 169   1        Gui_DrawFont_GBK16(64,50,BLUE,GRAY0,Dis_shi(Second));
+ 170   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    865    ----
+   CONSTANT SIZE    =      7    ----
+   XDATA SIZE       =      6    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2       2
+C51 COMPILER V9.52.0.0   DS1302                                                            04/18/2015 11:16:22 PAGE 4   
+
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

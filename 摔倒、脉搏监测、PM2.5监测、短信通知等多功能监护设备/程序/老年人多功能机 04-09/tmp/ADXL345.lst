@@ -1,0 +1,217 @@
+C51 COMPILER V9.52.0.0   ADXL345                                                           04/10/2015 09:56:26 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE ADXL345
+OBJECT MODULE PLACED IN .\tmp\ADXL345.obj
+COMPILER INVOKED BY: E:\Keil\C51\BIN\C51.EXE src\ADXL345.c BROWSE DEBUG OBJECTEXTEND PRINT(.\tmp\ADXL345.lst) TABS(2) OB
+                    -JECT(.\tmp\ADXL345.obj)
+
+line level    source
+
+   1          #include "STC12C5A60S2.h"
+   2          #include "Delays.h"
+   3          #include "math.h"     
+   4          #include "stdio.h" 
+   5          #include "ADXl345.h"
+   6          #include "DataDef.h"
+   7          #include "LCD.h"
+   8          
+   9          sbit  SCL1=P0^1;      //IIC??????
+  10          sbit  SDA1=P0^2;      //IIC??????
+  11          
+  12          uchar BUF[8]; 
+  13          // uchar ss[7]="1234567";
+  14          //float temp;
+  15          int Xdata,Ydata,Zdata;
+  16          #define SlaveAddress   0xA6   //?????IIC???????,??ALT  ADDRESS????????
+  17          
+  18          void ADXL345_Start()
+  19          {
+  20   1          SDA1 = 1;                    //?????
+  21   1          SCL1 = 1;                    //?????
+  22   1          delay_us(5);                 //??
+  23   1          SDA1 = 0;                    //?????
+  24   1          delay_us(5);                 //??
+  25   1          SCL1 = 0;                    //?????
+  26   1      }
+  27          /**************************************
+  28          ????
+  29          **************************************/
+  30          void ADXL345_Stop()
+  31          {
+  32   1          SDA1 = 0;                    //?????
+  33   1          SCL1 = 1;                    //?????
+  34   1          delay_us(5);                 //??
+  35   1          SDA1 = 1;                    //?????
+  36   1          delay_us(5);                 //??
+  37   1      }
+  38          /**************************************
+  39          ??????
+  40          ????:ack (0:ACK 1:NAK)
+  41          **************************************/
+  42          void ADXL345_SendACK(bit ack)
+  43          {
+  44   1          SDA1 = ack;                  //?????
+  45   1          SCL1 = 1;                    //?????
+  46   1          delay_us(5);                 //??
+  47   1          SCL1 = 0;                    //?????
+  48   1          delay_us(5);                 //??
+  49   1      }
+  50          /**************************************
+  51          ??????
+  52          **************************************/
+  53          bit ADXL345_RecvACK()
+  54          {
+C51 COMPILER V9.52.0.0   ADXL345                                                           04/10/2015 09:56:26 PAGE 2   
+
+  55   1          SCL1 = 1;                    //?????
+  56   1          delay_us(5);                 //??
+  57   1          CY = SDA1;                   //?????
+  58   1          SCL1 = 0;                    //?????
+  59   1          delay_us(5);                 //??
+  60   1          return CY;
+  61   1      }
+  62          /**************************************
+  63          ?IIC??????????
+  64          **************************************/
+  65          void ADXL345_SendByte(uchar dat)
+  66          {
+  67   1          uchar i;
+  68   1          for (i=0; i<8; i++)         //8????
+  69   1          {
+  70   2              dat <<= 1;              //????????
+  71   2              SDA1 = CY;               //????
+  72   2              SCL1 = 1;                //?????
+  73   2              delay_us(5);             //??
+  74   2              SCL1 = 0;                //?????
+  75   2              delay_us(5);             //??
+  76   2          }
+  77   1          ADXL345_RecvACK();
+  78   1      }
+  79          /**************************************
+  80          ?IIC??????????
+  81          **************************************/
+  82          uchar ADXL345_RecvByte()
+  83          {
+  84   1          uchar i;
+  85   1          uchar dat = 0;
+  86   1          SDA1 = 1;                    //??????,??????,
+  87   1          for (i=0; i<8; i++)         //8????
+  88   1          {
+  89   2              dat <<= 1;
+  90   2              SCL1 = 1;                //?????
+  91   2              delay_us(5);             //??
+  92   2              dat |= SDA1;             //???               
+  93   2              SCL1 = 0;                //?????
+  94   2              delay_us(5);             //??
+  95   2          }
+  96   1          return dat;
+  97   1      }
+  98          //******?????*******************************************
+  99           
+ 100          void Single_Write_ADXL345(uchar REG_Address,uchar REG_data)
+ 101          {
+ 102   1          ADXL345_Start();                  //????
+ 103   1          ADXL345_SendByte(SlaveAddress);   //??????+???
+ 104   1          ADXL345_SendByte(REG_Address);    //???????,?????pdf22? 
+ 105   1          ADXL345_SendByte(REG_data);       //???????,?????pdf22? 
+ 106   1          ADXL345_Stop();                   //??????
+ 107   1      }
+ 108          //********?????*****************************************
+ 109          // uchar Single_Read_ADXL345(uchar REG_Address)
+ 110          // {  
+ 111          //     uchar REG_data;
+ 112          //     ADXL345_Start();                          //????
+ 113          //     ADXL345_SendByte(SlaveAddress);           //??????+???
+ 114          //     ADXL345_SendByte(REG_Address);            //????????,?0?? 
+ 115          //     ADXL345_Start();                          //????
+ 116          //     ADXL345_SendByte(SlaveAddress+1);         //??????+???
+C51 COMPILER V9.52.0.0   ADXL345                                                           04/10/2015 09:56:26 PAGE 3   
+
+ 117          //     REG_data=ADXL345_RecvByte();              //???????
+ 118          //     ADXL345_SendACK(1);   
+ 119          //     ADXL345_Stop();                           //????
+ 120          //     return REG_data; 
+ 121          // }
+ 122          //*********************************************************
+ 123          //????ADXL345???????,????0x32~0x37
+ 124          //*********************************************************
+ 125          void Multiple_read_ADXL345(void)
+ 126          {   
+ 127   1          uchar i;
+ 128   1          ADXL345_Start();                          //????
+ 129   1          ADXL345_SendByte(SlaveAddress);           //??????+???
+ 130   1          ADXL345_SendByte(0x32);                   //????????,?0x32?? 
+ 131   1          ADXL345_Start();                          //????
+ 132   1          ADXL345_SendByte(SlaveAddress+1);         //??????+???
+ 133   1          for (i=0; i<6; i++)                      //????6?????,???BUF
+ 134   1          {
+ 135   2              BUF[i] = ADXL345_RecvByte();          //BUF[0]??0x32??????
+ 136   2              if (i == 5)
+ 137   2              {
+ 138   3                 ADXL345_SendACK(1);                //?????????NOACK
+ 139   3              }
+ 140   2              else
+ 141   2              {
+ 142   3                ADXL345_SendACK(0);                //??ACK
+ 143   3              }
+ 144   2          }
+ 145   1          ADXL345_Stop();                          //????
+ 146   1          delay_ms(5);
+ 147   1          Xdata=(int)((BUF[1]<<8)+BUF[0])*3.9;   
+ 148   1          Ydata=(int)((BUF[3]<<8)+BUF[2])*3.9;
+ 149   1          Zdata=(int)((BUF[5]<<8)+BUF[4])*3.9;
+ 150   1      }
+ 151          
+ 152          // void conversion(uint temp_data)  
+ 153          // {  
+ 154          //   ss[0]='X';
+ 155          //  ss[1]=':';  
+ 156          //  ss[2]=temp_data/1000+0x30 ;  //??
+ 157          //  temp_data=temp_data%1000;    //????
+ 158          //  ss[3]='.';
+ 159          //  ss[4]=temp_data/100+0x30;  //??
+ 160          //  temp_data=temp_data%100;     //????
+ 161          //  ss[5]=temp_data/10+0x30;  //??
+ 162          //  temp_data=temp_data%10;      //????
+ 163          //  ss[6]=temp_data+0x30;   //??
+ 164          // }
+ 165          // uchar *Show_xyz(void)
+ 166          // {   
+ 167          //  Multiple_read_ADXL345(); 
+ 168          //  dis_Xdata=(float)((BUF[1]<<8)+BUF[0])*3.9;   
+ 169          //  dis_Ydata=(float)((BUF[3]<<8)+BUF[2])*3.9;
+ 170          //  dis_Zdata=(float)((BUF[5]<<8)+BUF[4])*3.9;
+ 171          //  if(dis_Xdata<0)   dis_Xdata=-dis_Xdata;
+ 172          //    conversion(dis_Xdata);          //??????????
+ 173          //  return ss;
+ 174          // }
+ 175          
+ 176          //*****************************************************************
+ 177          //???ADXL345,???????pdf????************************
+ 178          void Init_ADXL345()
+C51 COMPILER V9.52.0.0   ADXL345                                                           04/10/2015 09:56:26 PAGE 4   
+
+ 179          {
+ 180   1          Single_Write_ADXL345(0x31,0x0B);   //????,??16g,13???
+ 181   1          Single_Write_ADXL345(0x2C,0x08);   //?????12.5 ??pdf13?
+ 182   1          Single_Write_ADXL345(0x2D,0x08);   //??????   ??pdf24?
+ 183   1          Single_Write_ADXL345(0x2E,0x80);   //?? DATA_READY ??
+ 184   1          Single_Write_ADXL345(0x1E,0x00);   //X ??? ????????????pdf29?
+ 185   1          Single_Write_ADXL345(0x1F,0x00);   //Y ??? ????????????pdf29?
+ 186   1          Single_Write_ADXL345(0x20,0x05);   //Z ??? ????????????pdf29?
+ 187   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    402    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     14       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

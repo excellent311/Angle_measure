@@ -1,0 +1,10 @@
+".\tmp\main.obj",
+".\tmp\GPIO.obj",
+".\tmp\Delays.obj",
+".\tmp\LCD.obj",
+".\tmp\ADXL345.obj",
+".\tmp\Uart.obj",
+".\tmp\DS1302.obj",
+".\tmp\Keyscan.obj" 
+TO ".\tmp\M_F_Machine" 
+PRINT(".\tmp\M_F_Machine.m51") RAMSIZE(256) 
