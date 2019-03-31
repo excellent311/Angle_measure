@@ -1,0 +1,24 @@
+Change Physical Footprint: Designator=C2 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=C3 Old Footprint=Cap2_polar New Footprint=Cap2_polar
+Change Physical Footprint: Designator=C4 Old Footprint=Cap2_polar New Footprint=Cap2_polar
+Change Physical Footprint: Designator=C5 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=C6 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=D1 Old Footprint=6-0805_N - duplicate New Footprint=6-0805_N - duplicate
+Change Physical Footprint: Designator=LS1 Old Footprint=bell New Footprint=bell
+Change Physical Footprint: Designator=OLED Old Footprint=OLED New Footprint=OLED
+Change Physical Footprint: Designator=P1 Old Footprint=HDR2X7 New Footprint=HDR2X7
+Change Physical Footprint: Designator=Q1 Old Footprint=SOT23_N New Footprint=SOT23_N
+Change Physical Footprint: Designator=R1 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=R2 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=R3 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=R4 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=R5 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=R6 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=R7 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=R8 Old Footprint=6-0805_N New Footprint=6-0805_N
+Change Physical Footprint: Designator=S1 Old Footprint=DPST-4 New Footprint=DPST-4
+Change Physical Footprint: Designator=S2 Old Footprint=DPST-4 New Footprint=DPST-4
+Change Physical Footprint: Designator=u1 Old Footprint=DIP20 New Footprint=DIP20
+Change Physical Footprint: Designator=u2 Old Footprint=SOT223_N New Footprint=SOT223_N
+Change Physical Footprint: Designator=u3 Old Footprint=USB2.5-2H4 New Footprint=USB2.5-2H4
+Change Physical Footprint: Designator=u4 Old Footprint=ADXL345 New Footprint=ADXL345
